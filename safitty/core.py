@@ -154,6 +154,7 @@ def get(
         raise_on_transforms: bool = False,
         copy: bool = False,
         one_of: List[Any] = None,
+        raise_on_not_found: bool = False,
 ) -> Optional[Any]:
     """Getter for nested dictionaries/lists of any depth.
     Args:
@@ -216,7 +217,7 @@ def get(
     if one_of is not None:
         value = value in one_of
 
-    return value
+    return status, value
 
 
 # Setters

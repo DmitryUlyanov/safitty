@@ -6,20 +6,21 @@ from pathlib import Path
 
 from . import core
 from . import parser
-from .types import Storage, Key, Keys
+from .types import Storage, Key, Keys, Status
 
 from pprint import pformat
-
 
 class Safict(collections.Mapping):
     def __init__(
         self,
         storage: Storage = None,
         separator: str = None,
+        raise_on_missing: bool = False,
     ):
         self._storage = storage or {}
         self._original_storage = dcopy.deepcopy(self._storage)
         self.separator = separator
+        self.raise_on_missing = raise_on_missing
 
     def _split_keys(self, keys: Keys) -> Keys:
         _keys = []
@@ -41,7 +42,13 @@ class Safict(collections.Mapping):
         Getter for dict
         """
         _keys = self._split_keys(keys)
-        result: Storage = core.get(self._storage, *_keys, **get_params)
+        status, result = core.get(self._storage, *_keys, **get_params)
+
+        if self.raise_on_missing and status != Status.OKAY: 
+            if status == Status.MISSING_KEY:
+                raise Exception(f"Key {_keys} not found")
+            else:
+                raise Exception(f"Could not retrieve value from safict")
         if isinstance(result, dict) and cast_dict:
             result = Safict(result, separator=self.separator)
 
@@ -70,7 +77,8 @@ class Safict(collections.Mapping):
         path: Union[str, Path],
         data_format: str = None,
         ordered: bool = False,
-        encoding: str = "utf-8"
+        encoding: str = "utf-8",
+        **safict_args: dict,
     ) -> 'Safict':
         result: Storage = parser.load(
             path,
@@ -78,8 +86,7 @@ class Safict(collections.Mapping):
             data_format=data_format,
             encoding=encoding
         )
-
-        return Safict(result)
+        return Safict(result, **safict_args)
 
     def save(
         self,
